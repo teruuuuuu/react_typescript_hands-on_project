@@ -6,6 +6,9 @@ import { Provider } from 'react-redux'
 
 import FirstComponent from "./components/first-component";
 
+import './assets/bootstrap/css/bootstrap.min.css'
+import './assets/css/main.css'
+
 const store = StoreConfig({});
 ReactDOM.render(
     <Provider store={ store }>

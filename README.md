@@ -362,3 +362,59 @@ export default class User {
   constructor(id: number, name: string) { this.id = id; this.name = name}
 }
 ```
+
+### webpackのcss-loaderを使ってみる
+react,webpackでの環境でスタイルを適用する方法は複数あるのですが、まずはhtmlのheadタグの中にstyleを書き込んですべてのコンポーネントが適用対象にするのがなじみ深いと思いますのでそれから試してみたいと思います。webpackのcss-loaderを使ってbootstrapを読み込むようにしたいと思います。適用するのは簡単でbootstrapからファイル一式をダウンロードしてきて'src/assets/bootstrap'にダウンロードしたすべてのファイルを写した上で"src/main.js"に以下のimportを追加するだけになっております。
+```
+import './assets/bootstrap/css/bootstrap.min.css'
+```
+
+### CSS-in-JSを試してみる
+Reactではcssをstyle属性として扱っていましてCSS-in-JSはCSSの記法で書いたスクリプトをを直接style属性として扱えるようにするものとなっております。例えば"src/style/sample.css.tsx"が以下の内容だったとする場合
+```
+export default {
+  ul: {
+    listStyle: 'none',
+    marginTop: '20px',
+    padding: '0px',
+    fontSize: '18px',
+  },
+  span: {
+    paddingLeft: '20px',
+  }
+}
+```
+コンポーネント側では以下のようにインポートしてstyle属性を設定することができます。
+```
+import * as React from "react";
+import * as ReactDOM from "react-dom"
+
+import User from '../model/user'
+
+interface ListCommponentProps extends React.Props<any> {};
+interface ListCommponentState extends React.StatelessComponent<any> {userList: Array<User>};
+
+import styles from '../style/sample.css';
+
+export default class ListComponentProps extends React.Component<ListCommponentProps, ListCommponentState > {
+  constructor(props: any) {
+    super(props);
+    this.state = {userList: [
+      new User(1, "山田一郎"),
+      new User(2, "田中二郎"),
+      new User(3, "佐藤三郎")]}
+  }
+
+  render() {
+    const { userList }= this.state
+    return (
+      <ul style={styles.ul}>
+        {userList.map((user, i) =>
+          <li key={i}><span>{ user.id }</span><span style={styles.span}>{ user.name } </span></li>
+        )}
+      </ul>
+    );
+  }
+}
+```
+デザイナーではないので良くわからないのですが、基本的にはcss-loaderの機能だけでスタイルを調整して動的に変更したい場合とかがあったらCSS-in-JSを使うとかの方がシンプルで良さそうな気がしました。

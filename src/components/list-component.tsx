@@ -6,6 +6,8 @@ import User from '../model/user'
 interface ListCommponentProps extends React.Props<any> {};
 interface ListCommponentState extends React.StatelessComponent<any> {userList: Array<User>};
 
+import styles from '../style/sample.css';
+
 export default class ListComponentProps extends React.Component<ListCommponentProps, ListCommponentState > {
   constructor(props: any) {
     super(props);
@@ -18,9 +20,9 @@ export default class ListComponentProps extends React.Component<ListCommponentPr
   render() {
     const { userList }= this.state
     return (
-      <ul className="user-list">
+      <ul style={styles.ul}>
         {userList.map((user, i) =>
-          <div key={i}><li>{ user.name } </li></div>
+          <li key={i}><span>{ user.id }</span><span style={styles.span}>{ user.name } </span></li>
         )}
       </ul>
     );
