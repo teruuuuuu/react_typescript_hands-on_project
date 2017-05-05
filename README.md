@@ -1,6 +1,5 @@
 # react_typescript_hands-on_project
-
-> A Vue.js project
+Typescript webpack環境でのReact開発ハンズオン用プロジェクト
 
 ## Build Setup
 
@@ -28,3 +27,69 @@ npm test
 ```
 
 For detailed explanation on how things work, checkout the [guide](http://vuejs-templates.github.io/webpack/) and [docs for vue-loader](http://vuejs.github.io/vue-loader).
+
+# TypescriptReact事始め
+Typescript webpackの環境でReactの開発を進めていきたいと思います。
+## 最初のコンポーネントを追加する
+### まずは表示だけしてみる
+vue-cliで作成したプロジェクトをTypescrit,React化した続きから進めていきたいと思います。まず最初のコンポーネントを追加してみたいと思います。
+'src/components/first-component.tsx'を追加して以下の内容にしてください。
+```
+import * as React from "react";
+import * as ReactDOM from "react-dom"
+
+export interface FirstComponentProps {}
+export interface FirstComponentState {}
+export class FirstComponent extends React.Component<FirstComponentProps, FirstComponentState> {
+  render() {
+    return (
+      <div>
+        <h1>Hello, React!!</h1>
+      </div>
+    );
+  }
+}
+```
+特に値を受け取って表示するわけでもない上記コンポーネントをまずは表示できるようにしてみたいと思います。'main.tsx'を以下の内容にして'npm run dev'で動作が確認できます。
+```
+import * as React from "react";
+import * as ReactDOM from "react-dom";
+
+import { FirstComponent } from "./components/first-component";
+
+ReactDOM.render(
+    <FirstComponent />,
+    document.getElementById("app")
+);
+```
+###　stateの値を表示してみる
+今度はstateの値を表示できるようにしてみたいと思います。Reactではstateに似た概念としてpropsがありますがこれは親から受け取るプロパティはpropsにセットされ自分自身のコンポーネントで使う値はstateにセットするというもので、コンポーネント初期化時に呼び出されるconstructor(props)で初期化を行います。
+
+```
+import * as React from "react";
+import * as ReactDOM from "react-dom"
+
+
+interface FirstComponentProps extends React.Props<any> {}
+interface FirstComponentState extends React.StatelessComponent<any> {text: string};
+
+export class FirstComponent extends React.Component<FirstComponentProps, FirstComponentState > {
+  constructor(props: any){
+    super(props);
+    this.state = { text: "init val" };
+  }
+  textFromInput = (e: React.SyntheticEvent<EventTarget>): void => {
+    this.setState({text: (e.target as HTMLInputElement).value})
+  }
+  render() {
+      const { text } = this.state;
+      return (
+      <div>
+        <h1>Hello, React!</h1>
+        <input type="text" placeholder="from text" onChange={ this.textFromInput.bind(this) }  /><br />
+        <input type="text" placeholder="to text" value={ text } readOnly/><br />
+      </div>
+    );
+  }
+}
+```
