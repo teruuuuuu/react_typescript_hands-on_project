@@ -1,24 +1,35 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom"
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import User from '../model/user'
 
-interface ListCommponentProps extends React.Props<any> {};
-interface ListCommponentState extends React.StatelessComponent<any> {userList: Array<User>};
+interface ListCommponentProps extends React.Props<any> {userList: Array<User>, callApi: (text: any) => void;};
+interface ListCommponentState extends React.StatelessComponent<any> {};
 
 import styles from '../style/sample.css';
+import * as SampleApiAction from '../api/sample-api'
 
-export default class ListComponentProps extends React.Component<ListCommponentProps, ListCommponentState > {
+function mapStateToProps(state: any) {
+  const { user_list } = state.userListReducer
+  return {
+    userList: user_list
+  }
+}
+function mapDispatchToProps(dispatch: any) {
+  return bindActionCreators( (Object as any).assign({}, SampleApiAction), dispatch);
+}
+class ListComponentProps extends React.Component<ListCommponentProps, ListCommponentState > {
   constructor(props: any) {
     super(props);
-    this.state = {userList: [
-      new User(1, "山田一郎"),
-      new User(2, "田中二郎"),
-      new User(3, "佐藤三郎")]}
+  }
+  componentWillMount() {
+    this.props.callApi(SampleApiAction.user_list_init());
   }
 
   render() {
-    const { userList }= this.state
+    const { userList }= this.props
     return (
       <ul style={styles.ul}>
         {userList.map((user, i) =>
@@ -28,3 +39,4 @@ export default class ListComponentProps extends React.Component<ListCommponentPr
     );
   }
 }
+export default connect(mapStateToProps, mapDispatchToProps)(ListComponentProps);

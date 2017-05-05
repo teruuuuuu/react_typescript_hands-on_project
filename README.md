@@ -496,3 +496,222 @@ export default function StoreConfig(initialState: any) {
 }
 ```
 これで動きを確認してみるとアクションがディスパッチして新しいstateを出力する直前でログ出力のミドルウェアがコンソール出力を行っているのが確認できます。ミドルウェア側ではnext(action)で次のアクションを呼び出すようにchainしているのですがここでactionの内容を修正したりすることで限定的ではありますがaopのように横断的な処理が行えるようです。
+
+### apiを呼び出してみる
+次にミドルウェアを利用してapiを呼び出せるようにしてみましょう。今回はwebpackの静的コンテンツとしてjsonを作成しそれに対してgetのリクエストを投げて表示に反映したいと思います。まず以下のダミーデータを"static/dummy.json"のファイル名で追加します。
+```
+{"user_list":[
+    {
+        "id":1,
+        "name":"藤岡弘"
+    },
+    {
+        "id":2,
+        "name":"佐々木剛"
+    },
+    {
+        "id":3,
+        "name":"宮内洋"
+    },
+    {
+        "id":4,
+        "name":"速水亮"
+    },
+    {
+        "id":5,
+        "name":"岡崎徹"
+    }
+]}
+```
+
+次にapiを呼び出すミドルウェアを"src/middleware/api_caller.tsx"に追加します。今回はjqueryを使ってリクエストを投げます。
+```
+import * as Redux from 'redux';
+import {CALL_API} from '../constants/sample-action-define';
+import * as jQuery      from 'jquery';
+
+function remoteService(next: Redux.Dispatch<any>, remote: any){
+  jQuery.ajax({
+    url: remote.url,
+    dataType: remote.dataType,
+    type: remote.type,
+    data: remote.data,
+    cache: false,
+    scriptCharset: 'utf-8',
+  }).done(function(data){
+    const new_action = remote.response_action(data)
+    if(new_action.type == CALL_API){
+      remoteService(next, new_action.remote)
+    }else{
+      next(new_action)
+    }
+  }).fail(function(data){
+    console.info(data)
+  })
+}
+
+export const api_caller = ({dispatch}: Redux.MiddlewareAPI<any>) =>
+  (next: Redux.Dispatch<any>) =>
+    (action: any) => {
+      if(action.type == CALL_API){
+        remoteService(next, action.remote)
+      }else{
+        next(action)
+      }
+    }
+export default api_caller
+```
+jqueryを使えるようにするため以下のコマンドを実行しておいてください。
+> npm install --save jquery @types/jquery
+
+ここではアクションをディスパッチしてきた時のtypeがCALL_APIであったらajaxでリクエストを投げるようにしています。レスポンスが帰ってきた時に何をするかはディスパッチに受け取ったactionのremote属性に設定されているremote_responseを呼び出すようにしています。ここで使っている定数は"src/constants/sample-action-define"で以下のように定義しています。
+```
+export const CHANGE_TEXT = 'CHANGE_TEXT'
+
+
+export const CALL_API = 'CALL_API'
+export const INIT_USER_LIST = 'INIT_USER_LIST'
+```
+
+次にミドルウェアとして呼び出せるように"src/store/store-config.js"を以下のように修正します。
+```
+const finalCreateStore = applyMiddleware(thunk, logger )(createStore);
+ ↓
+const finalCreateStore = applyMiddleware(thunk, logger, api_caller )(createStore);
+```
+
+また、今回api呼び出しで取得するユーザリストの情報はreduxのstateで管理するので以下のリデューサーを"src/reducers/userlist-reducer.tsx"に追加します。
+```
+import { INIT_USER_LIST } from '../constants/sample-action-define';
+import User from '../model/user'
+
+const INITIAL_STATE = {
+    user_list :[new User(0, 'john doh')]
+  };
+
+export default function userListReducer(state = INITIAL_STATE, action: {type: string, data: any}) {
+  switch (action.type) {
+    case INIT_USER_LIST:
+      const new_user: Array<User> = [];
+      action.data.user_list.map((user: any, i: number) =>
+        new_user.push(new User(user.id, user.name))
+      )
+      return (Object as any).assign({}, state, { user_list: new_user})
+
+    default:
+      return state
+  }
+}
+```
+それから作成したreducerをcombineReducersで既存のものとマージして使えるようにします。
+```
+import { combineReducers } from 'redux'
+import sampleReducer from './sample-reducer'
+import userListReducer from './userlist-reducer'
+
+const rootReducer = combineReducers({
+  sampleReducer,
+  userListReducer
+})
+export default rootReducer
+```
+
+api呼び出しとapi受け取り後に新しいstateをディスパッチするためのアクションを"src/api/sample-api.tsx"に追加します。
+```
+import * as types from '../constants/sample-action-define'
+
+export function callApi(remote: any) {
+  return { type: types.CALL_API, remote:remote}
+}
+
+
+export function  user_list_init() {
+  const response_action = function(data: any){
+    return {type: types.INIT_USER_LIST, data: data}
+  }
+
+  const data = {}
+  return createRequestData( process.env.REQUEST_URL.USER_LIST_INIT, 'JSON', 'GET',  data,  response_action);
+}
+
+function createRequestData(url: string, dataType: string, type: string, data: any, response_action: any){
+    return { url: url,
+             dataType:dataType,
+             type:type,
+             data:  data,
+             response_action: response_action,
+             contentType: 'application/x-www-form-urlencoded; charset=UTF-8' }
+}
+```
+ここではリクエストを呼び出すのに使用するURLをwebpackの環境変数から取得しているのですが、apiのURLを環境変数から取得できるようにするため、"config/request.url.dev.json"を以下の内容で作成します。
+```
+{
+  "USER_LIST_INIT": "/static/dummy.json"
+}
+```
+これは開発時に使うapiのURLになりますので、実運用用のものは"config/request.url.dev.json"に記入しておいてください。それから"config/dev.env.js"でprodEnvにマージさせておいてください。prod.env.jsonも同様です。
+```
+var merge = require('webpack-merge')
+var prodEnv = require('./prod.env')
+
+var devUrl = require('./request.url.dev.json')
+
+module.exports = merge(prodEnv, {
+  NODE_ENV: '"development"',
+  REQUEST_URL: JSON.stringify(devUrl)
+})
+```
+ここのprodEnvは"build/webpack.dev.conf.js"で以下のように環境変数に追加しているので確認できます。
+```
+new webpack.DefinePlugin({
+  'process.env': config.dev.env
+}),
+```
+これでURLを利用するときはprocess.env.REQUEST_URL.xxxxといった感じになるのがわかります。
+
+あとapiを呼び出して利用する側のコンポーネントにも修正が必要なので"src/components/list-component.tsx"を以下のように修正します。apiの呼び出しはcomponentWillMountのタイミングで行っています。
+```
+import * as React from "react";
+import * as ReactDOM from "react-dom"
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+
+import User from '../model/user'
+
+interface ListCommponentProps extends React.Props<any> {userList: Array<User>, callApi: (text: any) => void;};
+interface ListCommponentState extends React.StatelessComponent<any> {};
+
+import styles from '../style/sample.css';
+import * as SampleApiAction from '../api/sample-api'
+
+function mapStateToProps(state: any) {
+  const { user_list } = state.userListReducer
+  return {
+    userList: user_list
+  }
+}
+function mapDispatchToProps(dispatch: any) {
+  return bindActionCreators( (Object as any).assign({}, SampleApiAction), dispatch);
+}
+class ListComponentProps extends React.Component<ListCommponentProps, ListCommponentState > {
+  constructor(props: any) {
+    super(props);
+  }
+  componentWillMount() {
+    this.props.callApi(SampleApiAction.user_list_init());
+  }
+
+  render() {
+    const { userList }= this.props
+    return (
+      <ul style={styles.ul}>
+        {userList.map((user, i) =>
+          <li key={i}><span>{ user.id }</span><span style={styles.span}>{ user.name } </span></li>
+        )}
+      </ul>
+    );
+  }
+}
+export default connect(mapStateToProps, mapDispatchToProps)(ListComponentProps);
+```
+これで"npm run dev"で起動してみるとapi呼び出しによる初期化が確認できるかと思います。
