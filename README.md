@@ -418,3 +418,38 @@ export default class ListComponentProps extends React.Component<ListCommponentPr
 }
 ```
 デザイナーではないので良くわからないのですが、基本的にはcss-loaderの機能だけでスタイルを調整して動的に変更したい場合とかがあったらCSS-in-JSを使うとかの方がシンプルで良さそうな気がしました。
+
+## routerを使ってみる
+react-routerのバージョン変更による影響が大きいので実施しるタイミングによって設定が結構変わってきそうです。自分が試した時はv4がリリースされていたので以下のコマンドでモジュールをインストールしたところv4.1.1が入りました。
+> npm install --save react-router-dom @types/react-router-dom         
+
+"src/main.js"を以下のように修正することで利用できます。
+```
+import * as React from "react";
+import * as ReactDOM from 'react-dom';
+
+import StoreConfig from './store/store-config';
+import { Provider } from 'react-redux'
+
+import './assets/bootstrap/css/bootstrap.min.css'
+import './assets/css/main.css'
+
+import {  BrowserRouter, Route, Switch } from 'react-router-dom';
+import FirstComponent from './components/first-component';
+import ListComponent from './components/list-component';
+
+const store = StoreConfig({});
+ReactDOM.render(
+  <Provider store={store}>
+    <BrowserRouter>
+      <Switch>
+        <Route exact path="/" component={ FirstComponent as any } />
+        <Route exact path="/first" component={ FirstComponent as any } />
+        <Route exact path="/list" component={ ListComponent as any } />
+      </Switch>
+    </BrowserRouter>
+  </Provider >
+    ,document.getElementById("app")
+);
+```
+ここでは"http://localhost:8080/"及び"http://localhost:8080/first"でアクセスした時にFirstConmponentを表示し"http://localhost:8080/list"でアクセスした時にListConponentを表示する動きになります。urlからパラメータを受け取ったりテスト方法であったりは公式の方から確認いただければと思います。
