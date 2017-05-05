@@ -93,3 +93,44 @@ export class FirstComponent extends React.Component<FirstComponentProps, FirstCo
   }
 }
 ```
+
+### propsで引き継いだ値を子コンポーネントで利用する
+親からの値を受け取る側のコンポーネントを準備します。以下の"src/components/child-component.tsx"を作成します。
+```
+
+import * as React from "react";
+import * as ReactDOM from "react-dom"
+
+interface ChildomponentProps extends React.Props<any> {text: string}
+interface ChildComponentState extends React.StatelessComponent<any> {};
+
+export default class ChildComponent extends React.Component<ChildomponentProps, ChildComponentState > {
+  constructor(props: any){
+    super(props);
+  }
+  render() {
+    const { text } = this.props;
+    return (
+      <div>
+        <label>{ text }</label>
+      </div>
+    );
+  }
+}
+```
+次に値を受け渡す側"src/components/first-componet.js"側のrenderメソッドを以下の様に修正します。
+```
+render() {
+    const { text } = this.state;
+    return (
+    <div>
+      <h1>Hello, React!</h1>
+      <input type="text" placeholder="from text" onChange={ this.textFromInput.bind(this) }  /><br />
+      <input type="text" placeholder="to text" value={ text } readOnly/><br />
+      <ChildComponent text={text}/>
+    </div>
+  );
+}
+```
+
+renderの呼び出しで新しく作成したChildComponentコンポーネントのプロパティ'text'にテキスト入力した値が入るようになっています。ChildComponenは受け取ったプロパティをラベルでそのまま出すようにしておりまして動かしてみるとそれが確認できるかと思います。
