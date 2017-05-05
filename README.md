@@ -453,3 +453,46 @@ ReactDOM.render(
 );
 ```
 ここでは"http://localhost:8080/"及び"http://localhost:8080/first"でアクセスした時にFirstConmponentを表示し"http://localhost:8080/list"でアクセスした時にListConponentを表示する動きになります。urlからパラメータを受け取ったりテスト方法であったりは公式の方から確認いただければと思います。
+
+## ミドルウェアを使ってみる
+それではReactを使う上で結構肝になりそうなミドルウェアを試してみたいと思います。まず簡単なログ出力を行ってみます。
+
+### ログを出力する
+
+アクションが実行されるタイミングでミドルウェア側でconsole出力できるようにしたいと思います。まず"src/middleware/logger.tsx"を以下の内容で作成します。
+```
+import * as Redux from 'redux'
+
+export const loggerMiddleware = ({dispatch}: Redux.MiddlewareAPI<any>) =>
+  (next: Redux.Dispatch<any>) =>
+    (action: any) => {
+      console.info(action.type, action);
+      return next(action)
+    }
+
+export default loggerMiddleware
+```
+次に"src/store/store-config.tsx"側でミドルウェアを使うように修正を加えます。
+```
+import { createStore, applyMiddleware  } from 'redux'
+import thunk from 'redux-thunk'
+import rootReducer from '../reducers'
+
+import loggerMiddleware from '../middleware/logger'
+
+declare const module: any;
+
+export default function StoreConfig(initialState: any) {
+  const finalCreateStore = applyMiddleware(thunk, loggerMiddleware)(createStore);
+  const store = finalCreateStore(rootReducer, initialState);
+  if (module.hot) {
+    // Enable Webpack hot module replacement for reducers
+    module.hot.accept('../reducers', () => {
+      const nextReducer = require('../reducers').default
+      store.replaceReducer(nextReducer)
+    })
+  }
+  return store
+}
+```
+これで動きを確認してみるとアクションがディスパッチして新しいstateを出力する直前でログ出力のミドルウェアがコンソール出力を行っているのが確認できます。ミドルウェア側ではnext(action)で次のアクションを呼び出すようにchainしているのですがここでactionの内容を修正したりすることで限定的ではありますがaopのように横断的な処理が行えるようです。
