@@ -1,9 +1,15 @@
 import * as React from "react";
-import * as ReactDOM from "react-dom";
+import * as ReactDOM from 'react-dom';
 
-import { FirstComponent } from "./components/first-component";
+import StoreConfig from './store/store-config';
+import { Provider } from 'react-redux'
 
+import FirstComponent from "./components/first-component";
+
+const store = StoreConfig({});
 ReactDOM.render(
-    <FirstComponent />,
-    document.getElementById("app")
+    <Provider store={ store }>
+      <FirstComponent />
+    </Provider>
+    ,document.getElementById("app")
 );
