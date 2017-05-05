@@ -319,3 +319,46 @@ export class ChildComponent extends React.Component<ChildomponentProps, ChildCom
 export default connect(mapStateToProps, mapDispatchToProps)(ChildComponent);
 ```
 今回は直接storeの値を関連付けるようにしているが、親コンポーネント側で呼び出すアクションなりを変更できるようにしたいのであればpropsとして親のコンポーネントから子のコンポーネントに直接渡せるようにしたら良さそうに思います。ボタンとかテキスト入力であったりそれ自体がコンテキストを含んでいない流用生の高いものであればそれが良さそうに思います。
+
+## 表示について
+### リストを表示してみる
+リストのデータを表示する場合は以下のようになります。
+```
+import * as React from "react";
+import * as ReactDOM from "react-dom"
+
+import User from '../model/user'
+
+interface ListCommponentProps extends React.Props<any> {};
+interface ListCommponentState extends React.StatelessComponent<any> {userList: Array<User>};
+
+export default class ListComponentProps extends React.Component<ListCommponentProps, ListCommponentState > {
+  constructor(props: any) {
+    super(props);
+    this.state = {userList: [
+      new User(1, "山田一郎"),
+      new User(2, "田中二郎"),
+      new User(3, "佐藤三郎")]}
+  }
+
+  render() {
+    const { userList }= this.state
+    return (
+      <ul className="user-list">
+        {userList.map((user, i) =>
+          <div key={i}><li>{ user.name } </li></div>
+        )}
+      </ul>
+    );
+  }
+}
+```
+リスト表示で使用するクラスも作成します。
+```
+
+export default class User {
+  id: number;
+  name: string;
+  constructor(id: number, name: string) { this.id = id; this.name = name}
+}
+```
