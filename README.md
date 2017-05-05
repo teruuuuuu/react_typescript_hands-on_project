@@ -134,3 +134,144 @@ render() {
 ```
 
 renderの呼び出しで新しく作成したChildComponentコンポーネントのプロパティ'text'にテキスト入力した値が入るようになっています。ChildComponenは受け取ったプロパティをラベルでそのまま出すようにしておりまして動かしてみるとそれが確認できるかと思います。
+
+## react-eduxを利用する
+### Reduxでコンポーネンの値を変更してみる
+リデューサーで使うので以下のモジュールをインストールしておく。
+```
+npm install @types/node --save-dev
+npm install --save-dev redux-thunk @types/redux-thunk
+```
+
+まず"src/constants/sample-action-define.tsx"に今回追加するアクションの定数定義を追加します。
+```
+export const CHANGE_TEXT = 'CHANGE_TEXT'
+```
+
+"src/reducers/sample-reducer.tsx"にstate更新に使用するreducerを追加します。これはコンポーネント側がアクションを呼び出して来た場合にここでstateの更新を行います。
+```
+import { CHANGE_TEXT } from '../constants/sample-action-define'
+import { fromJS } from 'immutable';
+
+const INITIAL_STATE = {
+    text : 'init text'
+};
+
+export default function sampleReducer(state = INITIAL_STATE, action: {type: string, text: string}) {
+  switch (action.type) {
+    case CHANGE_TEXT:
+      return (Object as any).assign({}, state, { text: action.text})
+
+    default:
+      return state
+  }
+}
+```
+
+それから"src/reducers/index.tsx"にreducerをマージするためのメソッドを追加します。今回使用するReducerは一つだけなのであまり恩恵を感じないですが、複数のReducerが必要になる場合はこういったようにマージするメソッドがあった方が良さそうです。
+```
+import { combineReducers } from 'redux'
+import sampleReducer from './sample-reducer'
+
+const rootReducer = combineReducers({
+  sampleReducer
+})
+export default rootReducer
+```
+
+Reducerを呼び出すアクションを"src/actions/sample-action.tsx"に追加します。アクション自体はコンポーネントがディスパッチという関数を使うことで呼び出すことができます。
+```
+import { CHANGE_TEXT } from '../constants/sample-action-define'
+
+export function change_text(text: string) {
+  return { type: CHANGE_TEXT, text: text }
+}
+```
+
+stateを管理する大元であるstoreを"src/store/store-config.tsx"に作成します。applyMiddleware後にfinalCreateStoreやっているところでstoreを生成しています。applyMiddlewareについてはreactにおけるミドルウェアの機能を使う時に必要になるもので例えばログ出力や他サーバにリクエストを投げる場合などに利用されます。今回はミドルウェアを使用することもないのでapplyMiddlewareを使わずにcreateStoreだけでも良いはずですが、後からミドルウェアを使うことを想定し先にこの書き方にしておきます。まだ慣れていないのでany型で逃げる処理が多数あります。
+```
+import { createStore, applyMiddleware  } from 'redux'
+import thunk from 'redux-thunk'
+import rootReducer from '../reducers'
+
+declare const module: any;
+
+export default function StoreConfig(initialState: any) {
+  const finalCreateStore = applyMiddleware(thunk)(createStore);
+  const store = finalCreateStore(rootReducer, initialState);
+  if (module.hot) {
+    // Enable Webpack hot module replacement for reducers
+    module.hot.accept('../reducers', () => {
+      const nextReducer = require('../reducers').default
+      store.replaceReducer(nextReducer)
+    })
+  }
+  return store
+}
+```
+Reactにreduxのstateを私て扱えるようにする。"src/main.tsx"が以下になるようにします。ここではreact-reduxモジュールのProviderコンポーネントにstoreを渡しています。
+```
+import * as React from "react";
+import * as ReactDOM from 'react-dom';
+
+import StoreConfig from './store/store-config';
+import { Provider } from 'react-redux'
+
+import FirstComponent from "./components/first-component";
+
+const store = StoreConfig({});
+ReactDOM.render(
+    <Provider store={ store }>
+      <FirstComponent />
+    </Provider>
+    ,document.getElementById("app")
+);
+```
+それではReduxのstateを利用する側である"src/components/first-component.tsx"を以下のように修正します。mapStateToPropsにはstateの値が、mapDispatchToPropsにはディスパッチするために必要となるメソッドが格納されています。propTypesのプロパティと、textに変更があった時に呼び出すメソッドの情報が入っていてRenderメソッドではこれを使用して描画を行っています。またテキスト入力を行った際に呼び出されるtextFromInput内で"this.props.change_text((e.target as HTMLInputElement).value)"でアクションを呼び出した上でディスパッチしてReducerにより新しいstateが発行されます。
+```
+import * as React from "react";
+import * as ReactDOM from "react-dom";
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+
+import SampleReducer from '../reducers/sample-reducer'
+import * as SampleAction from '../actions/sample-action'
+
+import { change_text } from '../actions/sample-action';
+import ChildComponent from "./child-component"
+
+interface FirstComponentProps extends React.Props<any> {text: string, change_text: (text: string) => void;}
+interface FirstComponentState extends React.StatelessComponent<any> {};
+function mapStateToProps(state: any) {
+  const { text } = state.sampleReducer
+  return {
+    text: text
+  };
+}
+function mapDispatchToProps(dispatch: any) {
+  return bindActionCreators( (Object as any).assign({}, SampleAction), dispatch);
+}
+
+class FirstComponent extends React.Component<FirstComponentProps, FirstComponentState > {
+  constructor(props: any){
+    super(props);
+  }
+  textFromInput = (e: React.SyntheticEvent<EventTarget>): void => {
+    this.props.change_text((e.target as HTMLInputElement).value)
+  }
+
+  render() {
+      const { text } = this.props;
+      console.info(this.props);
+      return (
+      <div>
+        <h1>Hello, React!</h1>
+        <input type="text" placeholder="from text" onChange={ this.textFromInput.bind(this) }  /><br />
+        <input type="text" placeholder="to text" value={ text } readOnly/><br />
+        <ChildComponent text={text}/>
+      </div>
+    );
+  }
+}
+export default connect(mapStateToProps, mapDispatchToProps)(FirstComponent);
+```
