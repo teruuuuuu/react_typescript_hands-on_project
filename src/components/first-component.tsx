@@ -31,13 +31,12 @@ class FirstComponent extends React.Component<FirstComponentProps, FirstComponent
 
   render() {
       const { text } = this.props;
-      console.info(this.props);
       return (
       <div>
         <h1>Hello, Typescript React!</h1>
         <input type="text" placeholder="from text" onChange={ this.textFromInput.bind(this) }  /><br />
         <input type="text" placeholder="to text" value={ text } readOnly/><br />
-        <ChildComponent text={text}/>
+        <ChildComponent />
       </div>
     );
   }

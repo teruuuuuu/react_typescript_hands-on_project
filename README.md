@@ -275,3 +275,47 @@ class FirstComponent extends React.Component<FirstComponentProps, FirstComponent
 }
 export default connect(mapStateToProps, mapDispatchToProps)(FirstComponent);
 ```
+
+### 子のコンンポーネントからアクションを呼び出してみる
+子のコンポーネントにも直接storeで管理しているstateを関連付けて利用することができる。以下の修正を加えることでテキストのstateを空白にするアクションを呼び出すようにすることができる。
+```
+import * as React from "react";
+import * as ReactDOM from "react-dom"
+import { bindActionCreators } from 'redux';
+import { connect } from 'react-redux';
+
+import * as SampleAction from '../actions/sample-action'
+
+interface ChildomponentProps extends React.Props<any> {text: string, change_text: (text: string) => void;};
+interface ChildComponentState extends React.StatelessComponent<any> {};
+
+function mapStateToProps(state: any) {
+  const { text } = state.sampleReducer
+  return {text: text };
+}
+function mapDispatchToProps(dispatch: any) {
+  return bindActionCreators( (Object as any).assign({}, SampleAction), dispatch);
+}
+
+export class ChildComponent extends React.Component<ChildomponentProps, ChildComponentState > {
+  clearText() {
+    this.props.change_text("")
+  }
+
+  constructor(props: any){
+    super(props);
+  }
+  render() {
+    const { text } = this.props;
+    return (
+      <div>
+        <label>{ text }</label><br />
+        <button onClick = { this.clearText.bind(this) }>クリア</button>
+      </div>
+    );
+  }
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(ChildComponent);
+```
+今回は直接storeの値を関連付けるようにしているが、親コンポーネント側で呼び出すアクションなりを変更できるようにしたいのであればpropsとして親のコンポーネントから子のコンポーネントに直接渡せるようにしたら良さそうに思います。ボタンとかテキスト入力であったりそれ自体がコンテキストを含んでいない流用生の高いものであればそれが良さそうに思います。
